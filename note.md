@@ -1,0 +1,1 @@
+- write a main file with terminal interaction
