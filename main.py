@@ -6,36 +6,75 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-model = os.getenv("MODEL")
-client = genai.Client()
 provider = os.getenv("PROVIDER")
+
+if provider=="gemini":
+    model = os.getenv("GEMINI_MODEL")
+    client = genai.Client()
+elif provider=="mistral":
+    model = os.getenv("MISTRAL_MODEL")
+    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+else:
+    raise ValueError(f"Unsupported model provider: {provider}")
+
+
+
 
 messages = []
 
-while True: 
-    user_input = input("User: ").strip() # take the user query
 
-    if user_input.lower() == "exit":
-        break
-
-    if not user_input:
-        continue
-
-    messages.append(
-        types.Content(
-            role="user",
-            parts=[types.Part(text=user_input)]
+def generated_response(client, provider, model, messages):
+    if provider == "gemini":
+        response = client.models.generate_content(
+            model=model,
+            contents=messages,
+            config=types.GenerateContentConfig(
+                system_instruction="You are a puppy, you can only say what a puppy can say."
+            )
         )
-    )
+        response_text = response.text
 
-    response = client.models.generate_content( # call gemeni api
-        model=model,
-        contents=messages,
-        config=types.GenerateContentConfig(
-            system_instruction="You are a puppy, you can only say what a puppy can say."
+    if provider == "mistral":
+        response = client.chat.complete(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a puppy, you can only say what a puppy can say.",
+                },
+                *messages,
+            ]
         )
-    )
+        response_text = response.choices[0].message.content
 
-    messages.append(response.candidates[0].content)
+    return response_text
 
-    print("Bot: ", response.text)
+
+
+
+def main():
+    while True: 
+        user_input = input("User: ").strip() # take the user query
+
+        if user_input.lower() == "exit":
+            break
+
+        if not user_input:
+            continue
+
+        messages.append({
+            "role": "user",
+            "content": user_input,
+        })
+
+        response_text = generated_response(client, provider, model, messages)
+
+        messages.append({
+            "role": "assistant",
+            "content": response_text
+        })
+
+        print("Bot: ", response_text)
+
+if __name__ == "__main__":
+    main()
