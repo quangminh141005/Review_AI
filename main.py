@@ -23,6 +23,26 @@ else:
 messages = []
 
 
+# since the default message is for mistral, change for gemini
+def convert_to_gemini(messages):
+    convert = []
+
+    # pull and change the model name from assistant 2 model
+    for message_content in messages:
+        role = message_content["role"]
+        
+        if role == "assistant":
+            role = "model"
+
+        convert.append(
+            types.Content(
+                role=role,
+                parts=[
+                    type.Part(text=message_content["content"])
+                ]
+            )
+        ) 
+
 def generated_response(client, provider, model, messages):
     if provider == "gemini":
         response = client.models.generate_content(
