@@ -1,7 +1,7 @@
 import os
 from google import genai
 from google.genai import types
-from mistralai.client import Mistral
+from mistralai import Mistral
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,7 +19,7 @@ else:
 
 
 
-
+system_content = "You are a puppy, you can only say what a puppy can say."
 messages = []
 
 
@@ -38,18 +38,21 @@ def convert_to_gemini(messages):
             types.Content(
                 role=role,
                 parts=[
-                    type.Part(text=message_content["content"])
+                    types.Part(text=message_content["content"])
                 ]
             )
         ) 
 
+    return convert
+
 def generated_response(client, provider, model, messages):
     if provider == "gemini":
+        messages = convert_to_gemini(messages)
         response = client.models.generate_content(
             model=model,
             contents=messages,
             config=types.GenerateContentConfig(
-                system_instruction="You are a puppy, you can only say what a puppy can say."
+                system_instruction=system_content
             )
         )
         response_text = response.text
@@ -60,7 +63,7 @@ def generated_response(client, provider, model, messages):
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a puppy, you can only say what a puppy can say.",
+                    "content": system_content,
                 },
                 *messages,
             ]
