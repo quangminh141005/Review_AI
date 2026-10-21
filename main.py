@@ -4,6 +4,8 @@ from google.genai import types
 from mistralai import Mistral
 from dotenv import load_dotenv
 
+from tools import add_schema, multiply_schema, available_tools
+
 load_dotenv()
 
 provider = os.getenv("PROVIDER")
@@ -18,9 +20,10 @@ else:
     raise ValueError(f"Unsupported model provider: {provider}")
 
 
-
-system_content = "You are a puppy, you can only say what a puppy can say."
+# Message define
+system_content = "You are gangster"
 messages = []
+
 
 
 # since the default message is for mistral, change for gemini
@@ -38,7 +41,7 @@ def convert_to_gemini(messages):
             types.Content(
                 role=role,
                 parts=[
-                    types.Part(text=message_content["content"])
+                    types.Part(text=str(message_content["content"]))
                 ]
             )
         ) 
@@ -46,17 +49,76 @@ def convert_to_gemini(messages):
     return convert
 
 def generated_response(client, provider, model, messages):
+    
+    # GEMINI
     if provider == "gemini":
-        messages = convert_to_gemini(messages)
-        response = client.models.generate_content(
-            model=model,
-            contents=messages,
-            config=types.GenerateContentConfig(
-                system_instruction=system_content
-            )
-        )
-        response_text = response.text
 
+        messages = convert_to_gemini(messages)
+
+
+        for _ in range(10):
+        
+            response = client.models.generate_content(
+                model=model,
+                contents=messages,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_content,
+                    tools=[
+                        types.Tool(
+                            function_declarations=[
+                            add_schema,
+                            multiply_schema,
+                            ]
+                        ),
+                    ],
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True,
+                    ),
+                ),
+            )
+
+            # if does not request any more function, return
+            if not response.function_calls:
+                return response.text
+
+            messages.append(response.candidates[0].content)
+
+
+            # execute, save and give back to the llm by wrap in types.
+            tool_results = []
+
+            for function_calls in response.function_calls:
+                tool_name = function_calls.name
+                arguments = function_calls.args
+
+                print(f"LLM use tool {tool_name}")
+
+                result = available_tools[tool_name](**arguments)
+
+
+                # Convert into a gemini function respond
+                tool_results.append(
+                    types.Part.from_function_response(
+                        name=tool_name,
+                        response={"result": result}
+                    )
+                )
+
+            messages.append(
+                types.Content(
+                    role="user",
+                    parts=tool_results
+                )
+            )
+
+        raise RuntimeError("Maximum tool interations exceeded")
+
+            
+
+            
+
+
+    # MISTRAL
     if provider == "mistral":
         response = client.chat.complete(
             model=model,
