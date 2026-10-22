@@ -1,9 +1,9 @@
 import os
-from google.genai import types
+import requests
 from pathlib import Path
 from datetime import datetime
 from dotenv import load_dotenv
-import requests
+from google.genai import types
 
 load_dotenv()
 
@@ -97,6 +97,9 @@ def get_weather(city: str) -> dict | str:
 available_tools = {
     "add": add,
     "multiply": multiply,
+    "get_current_time": get_current_time,
+    "read_file": read_file,
+    "get_weather": get_weather,
 }
 
 
@@ -136,5 +139,40 @@ multiply_schema = types.FunctionDeclaration(
             },
         },
         "required": ["a", "b"],
+    },
+)
+
+get_current_time_schema = types.FunctionDeclaration(
+    name="get_current_time",
+    description="Get the current time of the user",
+)
+
+read_file_schema = types.FunctionDeclaration(
+    name="read_file",
+    description="Read the content of a file",
+    parameters={
+        "type": "object",
+        "properties": {
+            "filename": {
+                "type": "string",
+                "description": "The file name the user want to read",
+            },
+        },
+        "required": ["filename"],
+    },
+)
+
+get_weather_schema = types.FunctionDeclaration(
+    name="get_weather",
+    description="Get the weather data from a city",
+    parameters={
+        "type": "object",
+        "properties": {
+            "city": {
+                "type": "string",
+                "description": "The city the user want to check the weather data",
+            },
+        },
+        "required": ["city"],
     },
 )

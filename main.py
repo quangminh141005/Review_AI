@@ -4,7 +4,7 @@ from google.genai import types
 from mistralai import Mistral
 from dotenv import load_dotenv
 
-from tools import add_schema, multiply_schema, available_tools
+from tools import add_schema, multiply_schema, get_current_time_schema, read_file_schema, get_weather_schema, available_tools
 
 load_dotenv()
 
@@ -62,6 +62,9 @@ def generate_response(client, provider, model, messages, system_content):
                             function_declarations=[
                             add_schema,
                             multiply_schema,
+                            get_current_time_schema,
+                            read_file_schema,
+                            get_weather_schema,
                             ]
                         ),
                     ],
@@ -153,6 +156,6 @@ if __name__ == "__main__":
             "content": response_text
         })
 
-        print(f"Bot has thinked {number_of_thoughts} times")
+        print(f"Bro has thinked {number_of_thoughts} times")
         print("Bot: ", response_text)
 
