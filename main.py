@@ -20,12 +20,6 @@ else:
     raise ValueError(f"Unsupported model provider: {provider}")
 
 
-# Message define
-system_content = "You are gangster"
-messages = []
-
-
-
 # since the default message is for mistral, change for gemini
 def convert_to_gemini(messages):
     convert = []
@@ -48,15 +42,15 @@ def convert_to_gemini(messages):
 
     return convert
 
-def generated_response(client, provider, model, messages):
+def generate_response(client, provider, model, messages, system_content):
     
     # GEMINI
     if provider == "gemini":
 
         messages = convert_to_gemini(messages)
 
-
-        for _ in range(10):
+        # thought - action - observation
+        for i in range(10):
         
             response = client.models.generate_content(
                 model=model,
@@ -79,7 +73,7 @@ def generated_response(client, provider, model, messages):
 
             # if does not request any more function, return
             if not response.function_calls:
-                return response.text
+                return response.text, i
 
             messages.append(response.candidates[0].content)
 
@@ -113,11 +107,6 @@ def generated_response(client, provider, model, messages):
 
         raise RuntimeError("Maximum tool interations exceeded")
 
-            
-
-            
-
-
     # MISTRAL
     if provider == "mistral":
         response = client.chat.complete(
@@ -137,7 +126,12 @@ def generated_response(client, provider, model, messages):
 
 
 
-def main():
+if __name__ == "__main__":
+
+    # define the system prompt and initialize message holder - a list
+    messages = []
+    system_content = "You are a angry neighborhood."
+
     while True: 
         user_input = input("User: ").strip() # take the user query
 
@@ -152,14 +146,13 @@ def main():
             "content": user_input,
         })
 
-        response_text = generated_response(client, provider, model, messages)
+        response_text, number_of_thoughts = generate_response(client, provider, model, messages, system_content)
 
         messages.append({
             "role": "assistant",
             "content": response_text
         })
 
+        print(f"Bot has thinked {number_of_thoughts} times")
         print("Bot: ", response_text)
 
-if __name__ == "__main__":
-    main()
