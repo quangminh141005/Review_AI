@@ -1,4 +1,6 @@
 import os
+import time
+import json
 from google import genai
 from google.genai import types
 from mistralai import Mistral
@@ -43,6 +45,10 @@ def convert_to_gemini(messages):
     return convert
 
 def generate_response(client, provider, model, messages, system_content):
+
+    step = 0
+    trace_logs = []
+    user_query = messages[-1]["content"]
     
     # GEMINI
     if provider == "gemini":
@@ -50,8 +56,12 @@ def generate_response(client, provider, model, messages, system_content):
         messages = convert_to_gemini(messages)
 
         # thought - action - observation
-        for i in range(10):
-        
+        for _ in range(10):
+
+            step += 1
+
+            step_start_time = time.time()
+            
             response = client.models.generate_content(
                 model=model,
                 contents=messages,
@@ -74,9 +84,21 @@ def generate_response(client, provider, model, messages, system_content):
                 ),
             )
 
-            # if does not request any more function, return
+            latency_ms = round((time.time() - step_start_time) * 1000, 2)
+
+            # if does not request any more function, return the text message
             if not response.function_calls:
-                return response.text, i
+
+                # add trace for the final answer
+                trace_logs.append({
+                    "step": step,
+                    "query": user_query,
+                    "action_type": "FINAL_ANSWER",
+                    "output": response.text,
+                    "latency_ms": latency_ms
+                })
+
+                return response.text, step, trace_logs
 
             messages.append(response.candidates[0].content)
 
@@ -85,13 +107,16 @@ def generate_response(client, provider, model, messages, system_content):
             tool_results = []
 
             for function_calls in response.function_calls:
+
                 tool_name = function_calls.name
                 arguments = function_calls.args
 
                 print(f"LLM use tool {tool_name}")
 
-                result = available_tools[tool_name](**arguments)
 
+                tool_start = time.perf_counter()
+                result = available_tools[tool_name](**arguments)
+                tool_latency_ms = round((time.perf_counter() - tool_start) * 1000, 2)
 
                 # Convert into a gemini function respond
                 tool_results.append(
@@ -101,7 +126,17 @@ def generate_response(client, provider, model, messages, system_content):
                     )
                 )
 
-            messages.append(
+                trace_logs.append({
+                    "step": step,
+                    "query": user_query,
+                    "action_type": "TOOL_EXECUTION",
+                    "tool_name": tool_name,
+                    "arguments": arguments,
+                    "observation": result,
+                    "latency_ms": tool_latency_ms
+                })
+
+            messages.append( # append the function result to the message, if enough will return the message to the user, it not do return for another tool, this is reAct i think
                 types.Content(
                     role="user",
                     parts=tool_results
@@ -133,7 +168,19 @@ if __name__ == "__main__":
 
     # define the system prompt and initialize message holder - a list
     messages = []
-    system_content = "You are a angry neighborhood."
+    system_content = """
+    You are a angry neighborhood with access to tools.
+
+    For each request:
+    - Decide whether a tool is needed
+    - Decide the approprivate tool and provide its required arguments
+    - If the action depends on the results of the previous tool, wait for the result
+    - After receiveing a tool result, check whether it answers the request.
+    - If more information needed, call another tool.
+    - Ask for clarification if the required information is missing.
+    - Never invent tool results.
+    - When you have enough information, give a final answer
+    """
 
     while True: 
         user_input = input("User: ").strip() # take the user query
@@ -149,7 +196,12 @@ if __name__ == "__main__":
             "content": user_input,
         })
 
-        response_text, number_of_thoughts = generate_response(client, provider, model, messages, system_content)
+        response_text, number_of_thoughts, logs = generate_response(client, provider, model, messages, system_content)
+
+        # save the log in each step
+        with open("trace_logs.json", "a", encoding="utf-8") as file:
+            for entry in logs:
+                file.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
         messages.append({
             "role": "assistant",
