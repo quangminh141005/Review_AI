@@ -7,7 +7,9 @@ from google.genai import types
 from mistralai import Mistral
 from dotenv import load_dotenv
 
-from tools import add_schema, multiply_schema, get_current_time_schema, read_file_schema, get_weather_schema, available_tools
+from tools.functions import available_tools
+from tools.gemini_schemas import gemini_tools
+from tools.open_ai_schemas import openai_tools
 
 load_dotenv()
 
@@ -70,13 +72,7 @@ def generate_response(client, provider, model, messages, system_content):
                     system_instruction=system_content,
                     tools=[
                         types.Tool(
-                            function_declarations=[
-                            add_schema,
-                            multiply_schema,
-                            get_current_time_schema,
-                            read_file_schema,
-                            get_weather_schema,
-                            ]
+                            function_declarations=gemini_tools
                         ),
                     ],
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
