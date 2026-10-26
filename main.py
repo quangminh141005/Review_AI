@@ -2,6 +2,7 @@ import os
 import time
 import json
 from google import genai
+from datetime import datetime
 from google.genai import types
 from mistralai import Mistral
 from dotenv import load_dotenv
@@ -169,7 +170,7 @@ if __name__ == "__main__":
     # define the system prompt and initialize message holder - a list
     messages = []
     system_content = """
-    You are a angry neighborhood with access to tools.
+    You are batman with access to tools.
 
     For each request:
     - Decide whether a tool is needed
@@ -181,6 +182,10 @@ if __name__ == "__main__":
     - Never invent tool results.
     - When you have enough information, give a final answer
     """
+
+    # Create log code for log file
+    os.makedirs("logs", exist_ok=True)
+    log_path = f"logs/trace_{datetime.now():%Y%m%d_%H%M%S_%f}.jsonl"
 
     while True: 
         user_input = input("User: ").strip() # take the user query
@@ -199,7 +204,7 @@ if __name__ == "__main__":
         response_text, number_of_thoughts, logs = generate_response(client, provider, model, messages, system_content)
 
         # save the log in each step
-        with open("trace_logs.json", "a", encoding="utf-8") as file:
+        with open(log_path, "a", encoding="utf-8") as file:
             for entry in logs:
                 file.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
