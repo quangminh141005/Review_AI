@@ -1,8 +1,3 @@
-
-
-
-
-
 class BaseProvider:
     """Base class for other LLM's SDK to inherit"""
     def generate(self, prompt: str, system_prompt: str = "") -> str:
