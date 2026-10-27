@@ -4,48 +4,27 @@ import json
 from google import genai
 from datetime import datetime
 from google.genai import types
-from mistralai import Mistral
 from dotenv import load_dotenv
 
 from tools.functions import available_tools
-from tools.gemini_schemas import gemini_tools
-from tools.open_ai_schemas import openai_tools
+from tools.schemas.gemini_schemas import gemini_tools
+from tools.schemas.open_ai_schemas import openai_tools
+
+from providers.gemini import GeminiProvider
+from providers.openai import OpenaiProvider
+
 
 load_dotenv()
 
+
 provider = os.getenv("PROVIDER")
 
-if provider=="gemini":
-    model = os.getenv("GEMINI_MODEL")
-    client = genai.Client()
-elif provider=="mistral":
-    model = os.getenv("MISTRAL_MODEL")
-    client = Mistral(api_key=os.getenv("MISTRAL_API_KEY"))
+if provider == "gemini":
+    provider = GeminiProvider(os.getenv("GEMINI_MODEL"))
 else:
-    raise ValueError(f"Unsupported model provider: {provider}")
-
+    provider = OpenaiProvider(os.getenv("OPENAI_SDK_MODEL"))
 
 # since the default message is for mistral, change for gemini
-def convert_to_gemini(messages):
-    convert = []
-
-    # pull and change the model name from assistant 2 model
-    for message_content in messages:
-        role = message_content["role"]
-        
-        if role == "assistant":
-            role = "model"
-
-        convert.append(
-            types.Content(
-                role=role,
-                parts=[
-                    types.Part(text=str(message_content["content"]))
-                ]
-            )
-        ) 
-
-    return convert
 
 def generate_response(client, provider, model, messages, system_content):
 
@@ -65,7 +44,7 @@ def generate_response(client, provider, model, messages, system_content):
 
             step_start_time = time.time()
             
-            response = client.models.generate_content(
+            response = client.models.generate_content( # formatted only for gemeni, need to change it to a general case
                 model=model,
                 contents=messages,
                 config=types.GenerateContentConfig(
@@ -142,20 +121,6 @@ def generate_response(client, provider, model, messages, system_content):
 
         raise RuntimeError("Maximum tool interations exceeded")
 
-    # MISTRAL
-    if provider == "mistral":
-        response = client.chat.complete(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_content,
-                },
-                *messages,
-            ]
-        )
-        response_text = response.choices[0].message.content
-
     return response_text
 
 
@@ -197,18 +162,20 @@ if __name__ == "__main__":
             "content": user_input,
         })
 
-        response_text, number_of_thoughts, logs = generate_response(client, provider, model, messages, system_content)
+
+        # Response return number of thought and log for tracking
+        response_text = provider.generate(messages, system_content)
 
         # save the log in each step
-        with open(log_path, "a", encoding="utf-8") as file:
-            for entry in logs:
-                file.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        # with open(log_path, "a", encoding="utf-8") as file:
+        #     for entry in logs:
+        #         file.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
         messages.append({
             "role": "assistant",
             "content": response_text
         })
 
-        print(f"Bro has thinked {number_of_thoughts} times")
+        # print(f"Bro has thinked {number_of_thoughts} times")
         print("Bot: ", response_text)
 

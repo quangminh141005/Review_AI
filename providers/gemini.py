@@ -9,10 +9,31 @@ class GeminiProvider(BaseProvider):
         self.client = genai.Client()
 
 
-    def generate(self, prompt: str, system_prompt: str = "") -> str:
-        response = self.client.model.generate_content(
+    def convert_to_gemini(self, messages):
+        convert = []
+
+        # pull and change the model name from assistant 2 model
+        for message_content in messages:
+            role = message_content["role"]
+            
+            if role == "assistant":
+                role = "model"
+
+            convert.append(
+                types.Content(
+                    role=role,
+                    parts=[
+                        types.Part(text=str(message_content["content"]))
+                    ]
+                )
+            ) 
+
+        return convert
+
+    def generate(self, messages: list[dict[str, str]], system_prompt: str = "") -> str:
+        response = self.client.models.generate_content(
             model=self.model,
-            contents=prompt,
+            contents=self.convert_to_gemini(messages),
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
             )
