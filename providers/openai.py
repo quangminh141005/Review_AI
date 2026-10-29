@@ -3,6 +3,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 
 from providers.base import BaseProvider
+from tools.schemas.openai_schemas import openai_tools
 
 load_dotenv()
 
@@ -23,3 +24,5 @@ class OpenaiProvider(BaseProvider):
         )
 
         return response.output_text
+
+    def generate_with_tools(self, prompt, tools_schemas, system_prompt = ""):
