@@ -1,4 +1,5 @@
 import os
+import json
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -48,7 +49,7 @@ class GeminiProvider(BaseProvider):
             )
         )
 
-        tool_call = []
+        tool_calls = []
 
         if response.function_calls:
             for item in response.fuction_calls:
@@ -56,10 +57,14 @@ class GeminiProvider(BaseProvider):
                     ToolCall(
                         id=item.id,
                         name=item.name,
-                        arguments=json.load
+                        arguments=item.args,
                     )
                 )
 
 
-        return response.text
+        return LLMResponse(
+            text=response.text or None,
+            tool_calls=tool_calls,
+            raw_response=response,
+        )
     
