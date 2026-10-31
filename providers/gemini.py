@@ -11,6 +11,7 @@ load_dotenv()
 
 """
 The same note as openai (in ./openai.py)
+- provide gemini thought signature?
 """
 
 class GeminiProvider(BaseProvider):
@@ -19,26 +20,58 @@ class GeminiProvider(BaseProvider):
         self.client = genai.Client()
 
 
-    def convert_to_gemini(self, messages):
-        convert = []
+    def _convert_messages(self, messages):
+        converted = [] 
 
-        # pull and change the model name from assistant 2 model
-        for message_content in messages:
-            role = message_content["role"]
-            
-            if role == "assistant":
-                role = "model"
+        for message in messages:
 
-            convert.append(
-                types.Content(
-                    role=role,
-                    parts=[
-                        types.Part(text=str(message_content["content"]))
-                    ]
+            parts = [] # for store function call
+
+            # Normal text message
+            if message.content and message.role != "tool":
+                parts.append(
+                    types.Part.from_text(text=message.content)
                 )
-            ) 
 
-        return convert
+            # assistance tool calls
+            for call in message.tool_calls:
+                parts.append(
+                    types.Part.from_function_call(
+                        name=call.name,
+                        args=call.arguments,
+                    )
+                )
+
+            # convert tool's results
+            if message.role == "tool":
+                try:
+                    result = json.loads(message.content)
+                except (json.JSONDecodeError, TypeError):
+                    result = {"result": message.content}
+
+                if not isinstance(result, dict):
+                    result = {"result": result}
+
+                parts.append(
+                    type.Part.from_function_response(
+                        name=message.tool_name,
+                        response=result,
+                    )
+                )
+
+            if not parts:
+                continue
+
+            role = ("model" if message.role == "assistant" else "user")
+
+            converted.append(
+                type.Content(
+                    role=role,
+                    parts=parts,
+                )
+            )
+
+            return converted
 
     def generate(self, messages: list[dict[str, str]], system_prompt: str = "") -> str:
         response = self.client.models.generate_content(
