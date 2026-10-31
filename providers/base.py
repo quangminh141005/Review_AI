@@ -34,7 +34,7 @@ class BaseProvider:
     @abstractmethod
     def generate(
         self,
-        messages: list[str],
+        messages: list[dict[str, str]],
         system_prompt: str = "",
         tools: list[str] | None = None,            
     ) -> LLMResponse: 
