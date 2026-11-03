@@ -1,5 +1,6 @@
 .env
 AGENTS.md
+CLAUDE.md
 __pycache__
 trace_logs.json
 logs/

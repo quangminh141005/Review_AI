@@ -3,13 +3,9 @@ from tools.registry import ToolRegistry
 
 
 """
-User's need: 
-- text response
-- tools execution (maybe)
-
-What does the agent need? -  base on this to define the datatype for the provider
-- text reponse 
-- tool state
+The similar thing of llm response of any provider is that 
+there is a variable for function call or not (if i set automation
+for function calling to false)
 """
 
 class Agent:

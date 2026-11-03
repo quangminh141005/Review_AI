@@ -76,7 +76,7 @@ class GeminiProvider(BaseProvider):
     def generate(self, messages: list[dict[str, str]], system_prompt: str = "") -> str:
         response = self.client.models.generate_content(
             model=self.model,
-            contents=self.convert_to_gemini(messages),
+            contents=self._convert_messages(messages),
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
             )
